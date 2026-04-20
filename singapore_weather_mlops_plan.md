@@ -63,3 +63,6 @@ The system follows a **Serverless Medallion Architecture**, ensuring clear separ
 
 ---
 **Status:** Architecture Design Complete. Ready for Phase 1.
+**References:** 
+- Historical: https://data.gov.sg/collections/2279/view
+- Real-time: https://data.gov.sg/datasets/d_6580738cdd7db79374ed3152159fbd69/view#tag/default/GET/rainfall
