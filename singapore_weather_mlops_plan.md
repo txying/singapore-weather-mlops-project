@@ -5,7 +5,53 @@ This project architected a professional-grade MLOps pipeline on Google Cloud Pla
 ## 1. System Architecture
 The system follows a **Serverless Medallion Architecture**, ensuring clear separation between raw data, structured storage, and feature engineering.
 
-[Image of a professional MLOps architecture on GCP with BigQuery, Cloud Functions, and Vertex AI]
+```mermaid
+graph TD
+    HIST["Data.gov.sg Historical Rainfall CSVs<br/>2024/2025"]
+    API["NEA / Data.gov.sg<br/>Real-time Rainfall API"]
+
+    SCHED_INGEST["Cloud Scheduler<br/>every 5 min"]
+    SCHED_PRED["Cloud Scheduler<br/>every 15 min"]
+    SCHED_TRAIN["Manual / Scheduled Retraining<br/>weekly or on drift"]
+
+    GCS_RAW["GCS Bucket<br/>Bronze Raw Layer<br/>historical CSVs + optional raw API JSON"]
+    BQ_SILVER["BigQuery Table<br/>rain_silver<br/>cleaned typed rainfall readings"]
+    BQ_GOLD["BigQuery View<br/>rain_gold<br/>lag features, rolling averages, labels"]
+    GCS_MODEL["GCS Bucket / Path<br/>model.joblib + preprocessing artifacts"]
+    FIRESTORE["Firestore<br/>latest predictions"]
+
+    INGEST_FN["Ingestor Cloud Function<br/>parse API JSON<br/>append readings to BigQuery"]
+    TRAIN["Training Job / Local Script / Vertex AI<br/>batch train XGBoost model"]
+    PRED_FN["Predictor Cloud Function<br/>query latest features<br/>load existing model<br/>run inference"]
+
+    APP["Frontend Dashboard<br/>Next.js / Streamlit"]
+    EVAL["Daily Evaluation Script<br/>join predictions with actuals<br/>F1, Brier Score, drift metrics"]
+
+    HIST --> GCS_RAW
+    GCS_RAW --> BQ_SILVER
+
+    SCHED_INGEST --> INGEST_FN
+    API --> INGEST_FN
+    INGEST_FN -. optional raw snapshot .-> GCS_RAW
+    INGEST_FN --> BQ_SILVER
+
+    BQ_SILVER --> BQ_GOLD
+
+    SCHED_TRAIN --> TRAIN
+    BQ_GOLD --> TRAIN
+    TRAIN -->|publish trained model| GCS_MODEL
+
+    SCHED_PRED --> PRED_FN
+    BQ_GOLD --> PRED_FN
+    GCS_MODEL -->|reuse model artifact| PRED_FN
+    PRED_FN --> FIRESTORE
+
+    FIRESTORE --> APP
+
+    FIRESTORE --> EVAL
+    BQ_SILVER --> EVAL
+    EVAL --> APP
+```
 
 * **Bronze Layer (Raw):** Historical CSVs and raw API JSON snapshots stored in **Google Cloud Storage (GCS)**.
 * **Silver Layer (Structured):** Cleaned, deduplicated, and typed data stored in **BigQuery**.
