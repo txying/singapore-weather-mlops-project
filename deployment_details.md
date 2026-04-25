@@ -102,7 +102,7 @@ For cloud loading:
 Initial training can run locally:
 
 ```bash
-python -m src.training.train
+python3 -m src.training.train
 ```
 
 The training job should:
@@ -166,9 +166,9 @@ Retraining should:
 
 ## Concrete Deployment Commands
 
-Use these commands as the operational deployment path once the SQL files and Python entrypoints exist.
+Use these commands as the operational deployment path once the SQL files and Python entrypoints exist. Local values should come from `.env`; `.env.example` is the committed template.
 
-Set local variables first:
+Set local variables first if you are running raw `gcloud` commands. Python scripts and rendered SQL should read from `.env`.
 
 ```bash
 export GCP_PROJECT="<project-id>"
@@ -213,8 +213,15 @@ bq --location="$GCP_REGION" mk "$BQ_DATASET"
 Then apply SQL files:
 
 ```bash
-bq query --use_legacy_sql=false < sql/create_rain_silver.sql
-bq query --use_legacy_sql=false < sql/create_rain_gold_view.sql
+python3 scripts/run_sql.py sql/create_raw_historical_external_table.sql
+python3 scripts/run_sql.py sql/create_rain_silver.sql
+python3 scripts/run_sql.py sql/create_rain_gold_view.sql
+```
+
+To inspect the rendered SQL without running it:
+
+```bash
+python3 scripts/run_sql.py sql/create_raw_historical_external_table.sql --dry-run
 ```
 
 ### 4. Upload Historical Raw Files
@@ -226,7 +233,7 @@ gcloud storage cp data/raw/*.csv "gs://$RAW_MODEL_BUCKET/raw/historical/"
 Then load parsed canonical rows into BigQuery using the project loader script once implemented:
 
 ```bash
-python -m src.ingestion.load_historical
+python3 -m src.ingestion.load_historical
 ```
 
 If the CSV already matches the canonical `rain_silver` schema, a direct `bq load` can be used instead.
@@ -236,7 +243,7 @@ If the CSV already matches the canonical `rain_silver` schema, a direct `bq load
 Run training locally:
 
 ```bash
-python -m src.training.train
+python3 -m src.training.train
 ```
 
 Upload the approved model artifact:
@@ -345,6 +352,32 @@ Recommended order:
 7. Deploy ingestion.
 8. Deploy inference.
 9. Add evaluation and retraining.
+
+For detailed local test commands, see `local_testing_guide.md`.
+
+## Testing SQL Scripts
+
+SQL files that contain `${VAR}` placeholders should be tested with `scripts/run_sql.py`, not sent directly to `bq`.
+
+Preview rendered SQL:
+
+```bash
+python3 scripts/run_sql.py sql/create_raw_historical_external_table.sql --dry-run
+```
+
+Run the SQL against BigQuery:
+
+```bash
+python3 scripts/run_sql.py sql/create_raw_historical_external_table.sql
+```
+
+Validate the created object:
+
+```bash
+bq query --use_legacy_sql=false \
+'SELECT COUNT(*) AS row_count
+ FROM `singapore-weather-mlops.raw_layer.historical`'
+```
 
 ## Repository Structure
 

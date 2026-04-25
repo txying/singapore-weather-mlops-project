@@ -1,0 +1,26 @@
+# Environment and credentials
+.env
+.env.*
+!.env.example
+*service-account*.json
+*credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Local data and model artifacts
+data/raw/
+data/interim/
+data/processed/
+models/*.joblib
+models/*.pkl
+
+# OS/editor
+.DS_Store
+.vscode/
